@@ -7,24 +7,31 @@
 
 ### Constants
 WIDTH=1800
-HEIGHT=768
+HEIGHT=900
 
 TEST_IMG_HEIGHT=1
-TEST_IMG_WIDTH=255
-TEST_HEX_OFFSET=
-TEST_OFFSET=5
+TEST_IMG_WIDTH=800
+TEST_START_HEX_COLOR="#000698"
+TEST_START_HEX_OFFSET="10000" 
+
+# Scale up/down CONSTANTS
+TEST_OFFSET=2
 SCALE="up"
 
 ### Global vars
+$build_diagnostics=0
+$painter_diagnostics=0
 $ourimages = []
-$image_x = 5
-$image_y = 5
-$image_offset_x = 2
+$image_x = 500
+$image_y = -200
+$image_offset_x = 0
 $oneimage=1
 $image_offset_y = 0
 
-
-
+$test_img_hex_color=TEST_START_HEX_COLOR
+$test_img_hex_offset=TEST_START_HEX_OFFSET
+#
+#
 
 class Board < Qt::Widget
 
@@ -43,31 +50,12 @@ class Board < Qt::Widget
   def initProg
 
     setStyleSheet "QWidget { background-color: #000000 }"
-    # build_image(width=20, height=10, hex_color="#00FF00", hex_offset="A", x_multiplier=10, y_multiplier=100)
-    $ourimages.push build_image(TEST_IMG_WIDTH, TEST_IMG_HEIGHT, "#000000", "FF", 1, 1)
+    ### build_image(width=20, height=10, hex_color="#00FF00", hex_offset="100", x_multiplier=10, y_multiplier=100)
+#    $ourimages.push build_image( 16 , 10, "#008000", "100", 1, 1)
+    $ourimages.push build_image(TEST_IMG_WIDTH, TEST_IMG_HEIGHT, $test_img_hex_color, $test_img_hex_offset, 1, 1)
     
-
-    case SCALE
-    when "up"
-      p = $image_y + ( TEST_IMG_HEIGHT + 2 )
-      q = 0
-      while p < ( HEIGHT + $image_x + TEST_IMG_HEIGHT )
-        q+=TEST_OFFSET
-        $ourimages.push $ourimages[0].scaled( ( TEST_IMG_WIDTH + q ), TEST_IMG_HEIGHT ) 
-        p+=( TEST_IMG_HEIGHT + 2 )
-        break if ( q > ( WIDTH + $image_x ) )
-      end
-    when "down"
-      p = $image_y + ( TEST_IMG_HEIGHT + 2 )
-      q = 1
-      while p < ( HEIGHT + $image_x + TEST_IMG_HEIGHT )
-        q+=TEST_OFFSET
-        $ourimages.push $ourimages[0].scaled( ( TEST_IMG_WIDTH - q ), TEST_IMG_HEIGHT ) 
-        p+=( TEST_IMG_HEIGHT + 2 )
-        break if ( q > ( WIDTH + $image_x ) )
-      end
-    else
-    end
+    scale_things
+      
 
     if $oneimage != 1
       $ourimages.push $ourimages[0].mirrored(true,false)
@@ -91,7 +79,60 @@ class Board < Qt::Widget
     end
   end
  
+  def scale_things
+    case SCALE
+    when "up"
+      p = $image_y
+      q = 0
+      while p < ( HEIGHT + $image_x + TEST_IMG_HEIGHT )
+        q+=TEST_OFFSET
+        $ourimages.push $ourimages[0].scaled( ( TEST_IMG_WIDTH + q ), TEST_IMG_HEIGHT ) 
+        p+=( TEST_IMG_HEIGHT )
+#        break if ( $ourimages[-1].width > ( WIDTH - $image_x ) )
+      end
+  
+    when "down"
+      p = $image_y
+      q = 1
+      while p < ( HEIGHT + $image_x + TEST_IMG_HEIGHT )
+        q+=TEST_OFFSET
+        $ourimages.push $ourimages[0].scaled( ( TEST_IMG_WIDTH - q ), TEST_IMG_HEIGHT ) 
+        p+=( TEST_IMG_HEIGHT )
+        break if ( $ourimages[-1].width < 1 )
+      end
 
+    when "down-up"
+      p = $image_y
+      q = 1
+      while p < ( HEIGHT + $image_x + TEST_IMG_HEIGHT )
+        if p < ( HEIGHT / 2 )
+          q+=TEST_OFFSET
+        else
+          q-=TEST_OFFSET
+        end
+        $ourimages.push $ourimages[0].scaled( ( TEST_IMG_WIDTH - q ), TEST_IMG_HEIGHT ) 
+        p+=( TEST_IMG_HEIGHT )
+        if ( $ourimages[-1].width < 1 )
+          q-=( TEST_OFFSET * 2 )
+        end
+      end
+
+    when "up-down"
+      p = $image_y
+      q = 1
+      while p < ( HEIGHT + $image_x + TEST_IMG_HEIGHT )
+        if p < ( HEIGHT / 2 )
+          q+=TEST_OFFSET
+        else
+          q-=TEST_OFFSET
+        end
+        $ourimages.push $ourimages[0].scaled( ( TEST_IMG_WIDTH + q ), TEST_IMG_HEIGHT ) 
+        p+=( TEST_IMG_HEIGHT )
+      end
+
+    else
+    end
+  end
 
   def paintEvent event
  
@@ -109,15 +150,17 @@ class Board < Qt::Widget
   def drawObjects painter
    
     draw_image_x = $image_x
-    cur_image_y = $image_y
+    draw_image_y = $image_y
 
 
-    print "***** REFRESH ****** \n" 
     
     $ourimages.each do |image|
-      painter.drawImage draw_image_x, cur_image_y, image
-      cur_image_y+=image.height+$image_offset_y
-      print "Image, W:", image.width, ", H:", image.height, ", cur_image_x: ", draw_image_x, ", cur_image_y: ", cur_image_y, "\n"
+      painter.drawImage draw_image_x, draw_image_y, image
+      draw_image_y+=image.height+$image_offset_y
+      draw_image_x-=1
+      if $painter_diagnostics==1
+        print "Image, W:", image.width, ", H:", image.height, ", draw_image_x: ", draw_image_x, ", draw_image_y: ", draw_image_y, "\n"
+      end
     end
   end
 
@@ -130,10 +173,22 @@ class Board < Qt::Widget
     case key
       when Qt::Key_Q.value
         exit 0
+      when Qt::Key_Space.value
+        $test_img_hex_color=rand("ffffff".hex).to_s(16)
+      when Qt:: Key_B.value # Blue
+        temp_rand=rand(10000)
+        $test_img_hex_offset=( temp_rand -( temp_rand % 256 )  ).to_s(16)
+      when Qt:: Key_G.value
+        $test_img_hex_offset=rand(10000).to_s(16)
+        
       else
     end  
 
+    $ourimages=[]
+    $ourimages.push build_image(TEST_IMG_WIDTH, TEST_IMG_HEIGHT, $test_img_hex_color, $test_img_hex_offset, 1, 1)
+    scale_things
     repaint
+
   end
    
 
@@ -161,17 +216,17 @@ puts "END"
 =end
 
 
-  def build_image(width=20, height=10, hex_color="000000", hex_offset="1", x_multiplier=10, y_multiplier=100)    # Build an image up from one pixel
+  def build_image(width=20, height=10, hex_color="000000", hex_offset="100", x_multiplier=10, y_multiplier=100)    # Build an image up from one pixel
     pixelmax=width
-    pixelmax=height unless width > height
+#    pixelmax=height unless width > height
     one_pixel = Qt::Image.new(1,1,4)  # third arg is format (see Qt Image ref)
     one_pixel.setPixel( 0, 0, 0 )  # third arg is color, decimal equiv of hex
   
     case pixelmax
-      when width 
-         image_temp=one_pixel.scaled(width, 1)
-      when height 
-        image_temp=one_pixel.scaled(1, height)
+    when width 
+       image_temp=one_pixel.scaled(width, 1)
+    when height 
+      image_temp=one_pixel.scaled(1, height)
     end
     
     # Get decimacl from hex (required for Qt::Image.setPixel   
@@ -180,14 +235,23 @@ puts "END"
     color=hex_color.hex
     offset=hex_offset.hex
    
+    if $build_diagnostics > 0
+      print "***** Building image ", width, ",", height, "|  color: ", color.to_s(16), "(", color, "), offset: ", offset.to_s(16), ", pixelmax: ", pixelmax, "\n"
+    end
 
     p=0
     while p < pixelmax
-    print "Building image ", width, ",", height, " color: ", color, ", offset: ", offset, ", pixelmax: ", pixelmax, "\n"
+      if $build_diagnostics > 1
+      print "...building image ", width, ",", height, "|  color: ", color.to_s(16), "(", color, "), offset: ", offset.to_s(16), ", pixelmax: ", pixelmax, "\n"
+      end
       image_temp.setPixel( p, 0, color )  if pixelmax==width
-      image_temp.setPixel( 0, p, color )  if pixelmax==height
+#      image_temp.setPixel( 0, p, color )  if pixelmax==height
       color+=offset
     p+=1
+    end
+    
+    if $build_diagnostics > 0
+      print "***** Built image ", width, ",", height, "|  color: ", color.to_s(16), "(", color, "), offset: ", offset.to_s(16), ", pixelmax: ", pixelmax, "\n"
     end
 
     built_image = image_temp.scaled( ( width * x_multiplier ), ( height * y_multiplier ) ) 
@@ -195,7 +259,7 @@ puts "END"
   return built_image 
 
   end
-  ### END of def build_house
+  ### END of def build_image
 
 end 
 
