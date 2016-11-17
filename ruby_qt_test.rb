@@ -6,24 +6,26 @@
 # Using Qt 4.8
 
 ### Constants
-WIDTH=1800
+WIDTH=1600
 HEIGHT=900
 
 TEST_IMG_HEIGHT=1
-TEST_IMG_WIDTH=800
+TEST_IMG_WIDTH=400
 TEST_START_HEX_COLOR="#000698"
 TEST_START_HEX_OFFSET="10000" 
 
 # Scale up/down CONSTANTS
-TEST_OFFSET=2
-SCALE="up"
+$test_offset=2
+$pattern="up-down"
 
 ### Global vars
 $build_diagnostics=0
 $painter_diagnostics=0
+$orig_images = []
 $ourimages = []
-$image_x = 500
-$image_y = -200
+$ourimages_2 = []
+$image_x = 205
+$image_y = 0
 $image_offset_x = 0
 $oneimage=1
 $image_offset_y = 0
@@ -51,24 +53,25 @@ class Board < Qt::Widget
 
     setStyleSheet "QWidget { background-color: #000000 }"
     ### build_image(width=20, height=10, hex_color="#00FF00", hex_offset="100", x_multiplier=10, y_multiplier=100)
-#    $ourimages.push build_image( 16 , 10, "#008000", "100", 1, 1)
-    $ourimages.push build_image(TEST_IMG_WIDTH, TEST_IMG_HEIGHT, $test_img_hex_color, $test_img_hex_offset, 1, 1)
+    $orig_images.push build_image(TEST_IMG_WIDTH, TEST_IMG_HEIGHT, $test_img_hex_color, $test_img_hex_offset, 1, 1)
+    $orig_images.push build_image(TEST_IMG_WIDTH, TEST_IMG_HEIGHT, $test_img_hex_color, $test_img_hex_offset, 1, 1)
     
-    scale_things
+    patterns($orig_images[0], $ourimages)
+    patterns($orig_images[1], $ourimages_2)
       
 
     if $oneimage != 1
-      $ourimages.push $ourimages[0].mirrored(true,false)
-      $ourimages.push $ourimages[0].rgbSwapped
+      $ourimages.push $orig_images[0].mirrored(true,false)
+      $ourimages.push $orig_images[0].rgbSwapped
       $ourimages.push build_image(20, 10, "#0000FF", "F", 5, 10)
       $ourimages.push build_image(10, 20, "#00FF00", "F", 1, 5)
       $ourimages.push build_image(10, 20, "#FF0000", "F", 10, 5)
       # $ourimages.push $ourimages[3].invertPixels
     
       # outputs to console, shows attributes
-      print "Our Image, W:", $ourimages[0].width, ", H:", $ourimages[0].height, "\n"
-      puts $ourimages[0].color(0)
-      @test_abc=$ourimages[0].copy(0,0,5,5)
+      print "Our Image, W:", $orig_images[0].width, ", H:", $orig_images[0].height, "\n"
+      puts $orig_imagess[0].color(0)
+      @test_abc=$orig_images[0].copy(0,0,5,5)
       print "@test_abc, W:", @test_abc.width, ", H:", @test_abc.height, "\n"
       print "Pixel(2,3): ",@test_abc.pixel(2,3), "\n"
       @redColor = Qt::Color.new 255, 175, 175
@@ -79,56 +82,84 @@ class Board < Qt::Widget
     end
   end
  
-  def scale_things
-    case SCALE
-    when "up"
-      p = $image_y
-      q = 0
-      while p < ( HEIGHT + $image_x + TEST_IMG_HEIGHT )
-        q+=TEST_OFFSET
-        $ourimages.push $ourimages[0].scaled( ( TEST_IMG_WIDTH + q ), TEST_IMG_HEIGHT ) 
-        p+=( TEST_IMG_HEIGHT )
-#        break if ( $ourimages[-1].width > ( WIDTH - $image_x ) )
-      end
+  def patterns(image_num=$orig_images[0], image_array=$ourimages)
+      case $pattern
+      when "up"
+        p = $image_y
+        q = 0
+        while p < ( HEIGHT + $image_y + TEST_IMG_HEIGHT )
+          q+=$test_offset
+          image_array.push image_num.scaled( ( TEST_IMG_WIDTH + q ), TEST_IMG_HEIGHT ) 
+          p+=( TEST_IMG_HEIGHT )
+        end
   
-    when "down"
-      p = $image_y
-      q = 1
-      while p < ( HEIGHT + $image_x + TEST_IMG_HEIGHT )
-        q+=TEST_OFFSET
-        $ourimages.push $ourimages[0].scaled( ( TEST_IMG_WIDTH - q ), TEST_IMG_HEIGHT ) 
-        p+=( TEST_IMG_HEIGHT )
-        break if ( $ourimages[-1].width < 1 )
+      when "down"
+        p = $image_y
+        q = 1
+        while p < ( HEIGHT + $image_y + TEST_IMG_HEIGHT )
+          q+=$test_offset
+          image_array.push image_num.scaled( ( TEST_IMG_WIDTH - q ), TEST_IMG_HEIGHT ) 
+          p+=( TEST_IMG_HEIGHT )
+          break if ( image_array[-1].width < 1 )
+        end
+
+      when "down-up"
+        p = $image_y
+        q = 1
+        while p < ( HEIGHT + $image_y + TEST_IMG_HEIGHT )
+          if p < ( HEIGHT / 2 )
+            q+=$test_offset
+          else
+            q-=$test_offset
+          end
+          image_array.push image_num.scaled( ( TEST_IMG_WIDTH - q ), TEST_IMG_HEIGHT ) 
+          p+=( TEST_IMG_HEIGHT )
+          if ( image_array[-1].width < 1 )
+            q-=( $test_offset * 2 )
+          end
+        end
+
+      when "up-down"
+        p = $image_y
+        q = 1
+        while p < ( HEIGHT + $image_y + TEST_IMG_HEIGHT )
+          if p < ( HEIGHT / 2 )
+            q+=$test_offset
+          else
+            q-=$test_offset
+          end
+          image_array.push image_num.scaled( ( TEST_IMG_WIDTH + q ), TEST_IMG_HEIGHT ) 
+          p+=( TEST_IMG_HEIGHT )
+        end
+   
+      when "random"
+        p = 0
+        q = rand(15)
+        height=rand(0.1..0.2)*10
+        print "height: ", height, "\n"
+        while p < ( HEIGHT * 2 )
+          which_way=rand(10)
+          if p < ( HEIGHT / 2 )
+            case which_way
+            when 0..8
+              q+=$test_offset
+            when 9..10
+              q-=$test_offset
+            end
+         else
+           case which_way
+           when 0..3
+             q+=$test_offset
+           when 4..10
+             q-=$test_offset
+           end
+        end
+
+        image_array.push image_num.scaled( ( TEST_IMG_WIDTH + q ), height ) 
+        p+=( height )
+ #        print "p: ", p, "  ]"
       end
 
-    when "down-up"
-      p = $image_y
-      q = 1
-      while p < ( HEIGHT + $image_x + TEST_IMG_HEIGHT )
-        if p < ( HEIGHT / 2 )
-          q+=TEST_OFFSET
-        else
-          q-=TEST_OFFSET
-        end
-        $ourimages.push $ourimages[0].scaled( ( TEST_IMG_WIDTH - q ), TEST_IMG_HEIGHT ) 
-        p+=( TEST_IMG_HEIGHT )
-        if ( $ourimages[-1].width < 1 )
-          q-=( TEST_OFFSET * 2 )
-        end
-      end
-
-    when "up-down"
-      p = $image_y
-      q = 1
-      while p < ( HEIGHT + $image_x + TEST_IMG_HEIGHT )
-        if p < ( HEIGHT / 2 )
-          q+=TEST_OFFSET
-        else
-          q-=TEST_OFFSET
-        end
-        $ourimages.push $ourimages[0].scaled( ( TEST_IMG_WIDTH + q ), TEST_IMG_HEIGHT ) 
-        p+=( TEST_IMG_HEIGHT )
-      end
 
     else
     end
@@ -149,19 +180,41 @@ class Board < Qt::Widget
   
   def drawObjects painter
    
-    draw_image_x = $image_x
+    draw_image_x = 5
     draw_image_y = $image_y
 
 
     
     $ourimages.each do |image|
       painter.drawImage draw_image_x, draw_image_y, image
-      draw_image_y+=image.height+$image_offset_y
-      draw_image_x-=1
+      draw_image_y+=image.height + $image_offset_y
+      draw_image_x+=1
       if $painter_diagnostics==1
         print "Image, W:", image.width, ", H:", image.height, ", draw_image_x: ", draw_image_x, ", draw_image_y: ", draw_image_y, "\n"
       end
     end
+   
+    print "$ourimages_2.count: ", $ourimages_2.count, "\n"
+    print "draw_image_y, stopped at: ", draw_image_y, "\n"
+  
+    draw_image_x = 5
+    draw_image_y = HEIGHT 
+
+      $count_me=0
+    $ourimages_2.each do |image|
+      $count_me+=1
+      draw_image_y-=image.height + $image_offset_y
+      painter.drawImage draw_image_x, draw_image_y, image
+      temp_rand=rand()
+      draw_image_x+=temp_rand
+      if $painter_diagnostics==1
+        print $count_me, ":: Image, W:", image.width, ", H:", image.height, ", draw_image_x: ", draw_image_x, ", draw_image_y: ", draw_image_y, "\n"
+      end
+    end
+
+    print "$ourimages_2.count: ", $ourimages_2.count, "\n"
+    print "draw_image_y, stopped at: ", draw_image_y, "\n"
+    print "*** END *** \n\n"
   end
 
 
@@ -175,18 +228,43 @@ class Board < Qt::Widget
         exit 0
       when Qt::Key_Space.value
         $test_img_hex_color=rand("ffffff".hex).to_s(16)
+        print "Color: ", $test_img_hex_color, "\n"
       when Qt:: Key_B.value # Blue
-        temp_rand=rand(10000)
+        temp_rand=rand(1000)
         $test_img_hex_offset=( temp_rand -( temp_rand % 256 )  ).to_s(16)
+        print "hex_offset: ", $test_img_hex_offset, "\n"
       when Qt:: Key_G.value
-        $test_img_hex_offset=rand(10000).to_s(16)
-        
+        temp_rand=rand(1677215)
+        $test_img_hex_offset=( temp_rand -( temp_rand % 65535 )  ).to_s(16)
+        print "hex_offset: ", $test_img_hex_offset, "\n"
+      when Qt::Key_S.value
+        temp_rand=rand(4) 
+        print "S rand(", temp_rand, ")\n"
+        case temp_rand 
+        when 0
+          $pattern = "up"
+        when 1
+          $pattern = "down"
+        when 2
+          $pattern = "up-down"
+        when 3
+          $pattern = "down-up"
+        else
+        end 
+ 
+      when Qt::Key_R.value
+        $pattern = "random"        
       else
     end  
 
     $ourimages=[]
-    $ourimages.push build_image(TEST_IMG_WIDTH, TEST_IMG_HEIGHT, $test_img_hex_color, $test_img_hex_offset, 1, 1)
-    scale_things
+    $ourimages_2=[]
+    $orig_images=[]
+    # $ourimages.push build_image(TEST_IMG_WIDTH, TEST_IMG_HEIGHT, $test_img_hex_color, $test_img_hex_offset, 1, 1)
+    $orig_images.push build_image(TEST_IMG_WIDTH, TEST_IMG_HEIGHT, $test_img_hex_color, $test_img_hex_offset, 1, 1)
+    $orig_images.push $orig_images[0].mirrored(true,false)
+    patterns($orig_images[0], $ourimages)
+    patterns($orig_images[1], $ourimages_2)
     repaint
 
   end
