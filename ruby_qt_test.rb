@@ -4,28 +4,39 @@
 # Created: November 2016
 #
 # Using Qt 4.8
+#
+# This program is a mess!
+#
+# Just been playing around, it's not put together that well.
+#
+# Maybe one day I will tidy it up and make it more functional
+#
+# But hey, not the most important thing,
+#
+# It makes pretty colors!!!
+#
 
 ### Constants
 WIDTH=1600
 HEIGHT=900
 
-TEST_IMG_HEIGHT=1
-TEST_IMG_WIDTH=400
+TEST_IMG_HEIGHT=8
+TEST_IMG_WIDTH=80
 TEST_START_HEX_COLOR="#000698"
 TEST_START_HEX_OFFSET="10000" 
 
 # Scale up/down CONSTANTS
 $test_offset=2
-$pattern="up-down"
+$pattern="none"
 
 ### Global vars
-$build_diagnostics=0
+$build_diagnostics=1
 $painter_diagnostics=0
 $orig_images = []
 $ourimages = []
 $ourimages_2 = []
-$image_x = 205
-$image_y = 0
+$image_x = 2
+$image_y = 2
 $image_offset_x = 0
 $oneimage=1
 $image_offset_y = 0
@@ -155,10 +166,14 @@ class Board < Qt::Widget
            end
         end
 
+
         image_array.push image_num.scaled( ( TEST_IMG_WIDTH + q ), height ) 
         p+=( height )
  #        print "p: ", p, "  ]"
       end
+
+      when "none"
+          image_array.push image_num
 
 
     else
@@ -198,7 +213,7 @@ class Board < Qt::Widget
     print "draw_image_y, stopped at: ", draw_image_y, "\n"
   
     draw_image_x = 5
-    draw_image_y = HEIGHT 
+    draw_image_y = HEIGHT - 100
 
       $count_me=0
     $ourimages_2.each do |image|
@@ -261,7 +276,7 @@ class Board < Qt::Widget
     $ourimages_2=[]
     $orig_images=[]
     # $ourimages.push build_image(TEST_IMG_WIDTH, TEST_IMG_HEIGHT, $test_img_hex_color, $test_img_hex_offset, 1, 1)
-    $orig_images.push build_image(TEST_IMG_WIDTH, TEST_IMG_HEIGHT, $test_img_hex_color, $test_img_hex_offset, 1, 1)
+    $orig_images.push build_image(TEST_IMG_WIDTH, TEST_IMG_HEIGHT, $test_img_hex_color, $test_img_hex_offset, 9, 40)
     $orig_images.push $orig_images[0].mirrored(true,false)
     patterns($orig_images[0], $ourimages)
     patterns($orig_images[1], $ourimages_2)
@@ -302,9 +317,9 @@ puts "END"
   
     case pixelmax
     when width 
-       image_temp=one_pixel.scaled(width, 1)
+       image_temp=one_pixel.scaled(width, 5 )
     when height 
-      image_temp=one_pixel.scaled(1, height)
+      image_temp=one_pixel.scaled(5, height)
     end
     
     # Get decimacl from hex (required for Qt::Image.setPixel   
@@ -322,8 +337,16 @@ puts "END"
       if $build_diagnostics > 1
       print "...building image ", width, ",", height, "|  color: ", color.to_s(16), "(", color, "), offset: ", offset.to_s(16), ", pixelmax: ", pixelmax, "\n"
       end
-      image_temp.setPixel( p, 0, color )  if pixelmax==width
-#      image_temp.setPixel( 0, p, color )  if pixelmax==height
+      image_temp.setPixel( p, 0, color )  
+      image_temp.setPixel( p+3+rand(1), 1, color )  
+      image_temp.setPixel( p+15+rand(20), 2, color )  
+      image_temp.setPixel( p+54+rand(8), 3, color )  
+      image_temp.setPixel( p+63+rand(4), 4, color )  
+      image_temp.setPixel( p+88+rand(4), 5, color )  
+      image_temp.setPixel( p+23+rand(16), 6, color )  
+      image_temp.setPixel( p+2+rand(2), 7, color )  
+      image_temp.setPixel( p+6+rand(20), 8, color )  
+      image_temp.setPixel( p+6+rand(20), 8, color )  
       color+=offset
     p+=1
     end
