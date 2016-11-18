@@ -20,20 +20,20 @@
 $build_diagnostics=0
 $painter_diagnostics=0
 $oneimage=1
-
+$pretty_patterns="off"
 
 ### Constants
 # Dimension of program window
-WIDTH=600
+WIDTH=1000
 HEIGHT=800
 
 # Constants for testing
-TEST_IMG_HEIGHT=1
-TEST_IMG_WIDTH=200
+TEST_IMG_WIDTH=400
+TEST_IMG_HEIGHT=2
 TEST_START_HEX_COLOR="#000698"
 TEST_START_HEX_OFFSET="10000" 
 TEST_IMG_X_MULTI=1
-TEST_IMG_Y_MULTI=200
+TEST_IMG_Y_MULTI=2
 ###
 
 ### Pattern variables
@@ -84,8 +84,8 @@ class Board < Qt::Widget
     build_image_arrays
     
     # Build patterns from the orginial images, and pass to separate arrays for display later.
-    patterns($orig_images[0], $active_images)
-    patterns($orig_images[1], $active_images_2)
+    patterns($orig_images[0], $active_images) 
+    patterns($orig_images[1], $active_images_2) 
       
     # This was used as part of the build process, might get rid of it, or reincorporate.
     #
@@ -132,60 +132,53 @@ class Board < Qt::Widget
       # Patterns were added as part of testing, maybe tidy up later?
       case $pattern
       when "up"
-        image_array.each do |image|
-          p = $initial_image_y
-          q = 0
-          while p < ( HEIGHT + $initial_image_y )
-            q+=$offset
-            image_array.push image_num.scaled( ( image.width - q ), image.height ) 
-          p+=( image.height )
-          end
+        p = $initial_image_y
+        q = 0
+        while p < ( HEIGHT + $initial_image_y )
+          q+=$offset
+          image_array.push image_num.scaled( ( $img_width + q ), $img_height ) 
+        p+=( $img_height )
         end
   
       when "down"
-        image_array.each do |image|
-          p = $initial_image_y
-          q = 1
-          while p < ( HEIGHT + $initial_image_y  )
-            q+=$offset
-            image_array.push image_num.scaled( ( image.width - q ), image.height ) 
-            p+=( image.height )
-            break if ( image_array[-1].width < 1 )
-          end
+        p = $initial_image_y
+        q = 0
+        while p < ( HEIGHT + $initial_image_y  )
+          q+=$offset
+          image_array.push image_num.scaled( ( $img_width - q ), $img_height ) 
+          p+=( $img_height )
+        break if ( image_array[-1].width < 1 )
         end
 
       when "down-up"
-        image_array.each do |image|
-          p = $initial_image_y
-          q = 1
-          while p < ( HEIGHT + $initial_image_y  )
-            if p < ( HEIGHT / 2 )
-              q+=$offset
-            else
-              q-=$offset
-            end
-            image_array.push image_num.scaled( ( image.width - q ), image.height ) 
-            p+=( image.height )
-            if ( image_array[-1].width < 1 )
-              q-=( $offset * 2 )
-            end
+        p = $initial_image_y
+        q = 0
+        while p < ( HEIGHT + $initial_image_y  )
+          if p < ( HEIGHT / 2 )
+            q+=$offset
+          else
+            q-=$offset
           end
-        end
+          image_array.push image_num.scaled( ( $img_width - q ), $img_height ) 
+          p+=( $img_height )
+          if ( image_array[-1].width < 1 && p < (HEIGHT / 2  ))
+            q-=( $offset * 2 )
+          end
+      end
 
       when "up-down"
-        image_array.each do |image|
-          p = $initial_image_y
-          q = 1
-          while p < ( HEIGHT + $initial_image_y )
-            if p < ( HEIGHT / 2 )
-              q+=$offset
-            else
-              q-=$offset
-            end
-            image_array.push image_num.scaled( ( image.width + q ), image.height ) 
-            p+=( image.height )
+        p = $initial_image_y
+        q = 0
+        while p < ( HEIGHT + $initial_image_y )
+          if p < ( HEIGHT / 2 )
+            q+=$offset
+          else
+            q-=$offset
           end
-        end 
+          image_array.push image_num.scaled( ( $img_width + q ), $img_height ) 
+        p+=( $img_height )
+        end
+   
       when "random"
         p = 0
         q = rand(15)
@@ -237,10 +230,16 @@ class Board < Qt::Widget
 
   
   def drawObjects painter
-  
  
-    draw_image_x = $initial_image_x
-    draw_image_x = rand(300) if $pattern=="random"
+    # Check pattern and place origin
+    case $pattern
+    when "up"
+      draw_image_x = rand( 0..( WIDTH / 2 ) ) 
+    when "random"
+      draw_image_x = rand(300) if $pattern=="random"
+    else
+      draw_image_x = $initial_image_x
+    end
     draw_image_y = $initial_image_y
 
 
@@ -248,7 +247,12 @@ class Board < Qt::Widget
     $active_images.each do |image|
       painter.drawImage draw_image_x, draw_image_y, image
       draw_image_y+=image.height + $image_offset_y
-      draw_image_x+=1
+      case $pattern
+      when "up"
+        draw_image_x-=1
+      else
+        draw_image_x+=1
+      end
       if $painter_diagnostics==1
         print "Image, W:", image.width, ", H:", image.height, ", draw_image_x: ", draw_image_x, ", draw_image_y: ", draw_image_y, "\n"
       end
@@ -258,17 +262,30 @@ class Board < Qt::Widget
   
 
     # Draw images from second array, stacking based on Y axis (starting from bottom)
-    draw_image_x = $initial_image_x
-    draw_image_x = rand(200) if $pattern=="random"
+    case $pattern
+    when "up"
+      draw_image_x = rand( ( WIDTH / 2 )..WIDTH ) 
+    when "random"
+      draw_image_x = rand(WIDTH)
+    else
+      draw_image_x = $initial_image_x
+    end
     draw_image_y = HEIGHT
 
     $count_me=0  # Added this var to check all images were being printed
     $active_images_2.each do |image|
       $count_me+=1
       draw_image_y-=image.height + $image_offset_y
-      painter.drawImage draw_image_x, draw_image_y, image
-      temp_rand=rand()
-      draw_image_x+=temp_rand
+        painter.drawImage draw_image_x, draw_image_y, image
+      case $pattern
+      when "up"
+        draw_image_x-=1
+      when "random"
+        temp_rand=rand()
+        draw_image_x+=temp_rand
+      else
+        draw_image_x+=1
+      end
       if $painter_diagnostics==1
         print $count_me, ":: Image, W:", image.width, ", H:", image.height, ", draw_image_x: ", draw_image_x, ", draw_image_y: ", draw_image_y, "\n"
       end
@@ -290,20 +307,23 @@ class Board < Qt::Widget
     case key
       when Qt::Key_Q.value
         exit 0
+      
       when Qt::Key_Space.value
         $img_hex_color=rand("ffffff".hex).to_s(16)
         print "Color: ", $img_hex_color, "\n"
+      
       when Qt:: Key_B.value # Blue
         temp_rand=rand(1000)
         $img_hex_offset=( temp_rand -( temp_rand % 256 )  ).to_s(16)
         print "hex_offset: ", $img_hex_offset, "\n"
+      
       when Qt:: Key_G.value
         temp_rand=rand(1677215)
         $img_hex_offset=( temp_rand -( temp_rand % 65535 )  ).to_s(16)
         print "hex_offset: ", $img_hex_offset, "\n"
+      
       when Qt::Key_S.value
         temp_rand=rand(4) 
-        print "S rand(", temp_rand, ")\n"
         case temp_rand 
         when 0
           $pattern = "up"
@@ -315,17 +335,28 @@ class Board < Qt::Widget
           $pattern = "down-up"
         else
         end 
+        print "S rand(", temp_rand, "), ", $pattern, "\n"
  
       when Qt::Key_R.value
-        $pattern = "random"        
+        $pattern = "random"
+     
+      when Qt::Key_I.value
+        # Just refreshes        
       else
     end  
 
 
     if key  # Prevents things happening when interacting with Window (e.g. moving with mouse)
       build_image_arrays
-      patterns($orig_images[0], $active_images)
-      patterns($orig_images[1], $active_images_2)
+     
+      if $pretty_patterns=="on"
+        patterns($orig_images[0], $active_images)
+        patterns($orig_images[1], $active_images_2)
+      else
+        $active_images.push $orig_images[0].scaled( $img_width, $img_height ) 
+        $active_images_2.push $orig_images[0].mirrored(true,false)
+      end
+      
       repaint 
     else
     end
@@ -353,9 +384,14 @@ puts "END"
 =end
 
 
-  def build_image(width=20, height=10, hex_color="000000", hex_offset="100", x_multiplier=10, y_multiplier=100)    # Build an image up from one pixel
-    pixelmax=width
-   #  pixelmax=height unless width > height
+  def build_image(width=20, height=10, hex_color="000000", hex_offset="100", x_multiplier=10, y_multiplier=100, orientation="horiz")    # Build an image up from one pixel
+    case orientation
+    when "horiz"
+      pixelmax=width
+    when "verti"
+      pixelmax=height
+    end
+
     one_pixel = Qt::Image.new(1,1,4)  # third arg is format (see Qt Image ref)
     one_pixel.setPixel( 0, 0, 0 )  # third arg is color, decimal equiv of hex
   
@@ -376,15 +412,21 @@ puts "END"
       if $build_diagnostics > 1
       print "...building image ", width, ",", height, "|  color: ", color.to_s(16), "(", color, "), offset: ", offset.to_s(16), ", pixelmax: ", pixelmax, "\n"
       end
-      image_temp.setPixel( p, 0, color )  
-      if $pattern=="random"
+      image_temp.setPixel( p, 0, color )  if pixelmax=="width"
+      image_temp.setPixel( p, 0, color )  if pixelmax=="height"
+      case $pattern
+      when "random"  # Works best with orientation = "horiz"
         # Need the minus one here, as pixel co-ordinates start at zero
-        (0..height-1).each do |pixel_y|
-          image_temp.setPixel(p+rand(6), pixel_y, color )  
+        (0..height-1).each { |pixel_y| image_temp.setPixel(p+rand(6), pixel_y, color ) }
+      else
+        if pixelmax=width
+          (0..height-1).each { |pixel_y| image_temp.setPixel( p, pixel_y, color ) }
+        elsif pixelmax=height
+          (0..width-1).each { |pixel_x| image_temp.setPixel( pixel_x, p, color ) }
         end
       end
       color+=offset
-    p+=1
+      p+=1
     end
     
     if $build_diagnostics > 0
