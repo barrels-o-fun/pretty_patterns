@@ -36,6 +36,10 @@ TEST_IMG_X_MULTI=1
 TEST_IMG_Y_MULTI=2
 ###
 
+### Game board variables
+$border_thickness=5
+
+
 ### Pattern variables
 $img_width=TEST_IMG_WIDTH 
 $img_height=TEST_IMG_HEIGHT
@@ -53,8 +57,8 @@ $active_images = []
 $active_images_2 = []
 
 ### Image positioning within the window 
-$initial_image_x = 200
-$initial_image_y = 5
+$initial_image_x = 40
+$initial_image_y = 40
 $image_offset_x = 0
 $image_offset_y = 0
 
@@ -76,12 +80,18 @@ class Board < Qt::Widget
 
 
   def initProg
+    # REF: def build_image \
+    # (width=20, height=10, hex_color="000000", hex_offset="100", x_multiplier=10, y_multiplier=100, orientation="horiz") \
+    # - build an image up from one pixel
 
     setStyleSheet "QWidget { background-color: #000000 }"
-    ### REF: build_image(width=20, height=10, hex_color="#00FF00", hex_offset="100", x_multiplier=10, y_multiplier=100)
+    ### REF: 
     #
     # Creates initial images
     build_image_arrays
+    build_lines
+ 
+    
     
     # Build patterns from the orginial images, and pass to separate arrays for display later.
     patterns($orig_images[0], $active_images) 
@@ -125,6 +135,11 @@ class Board < Qt::Widget
   end
   ### END of def build_image_arrays 
 
+  def build_lines
+    @line_verti = build_image(1, 1, $img_hex_color, $img_hex_offset, $border_thickness, HEIGHT-( $initial_image_y * 2 ), "verti")
+    @line_horiz = build_image(1, 1, $img_hex_color, $img_hex_offset, WIDTH-( $initial_image_x * 2 ), $border_thickness, "horiz")
+  end
+  ### END of def build_lines
 
 
   def patterns(image_num=$orig_images[0], image_array=$active_images)
@@ -230,7 +245,25 @@ class Board < Qt::Widget
 
   
   def drawObjects painter
+
+    # Paint my vertical line
+    board_lines_pos= 0
+    board_width = WIDTH - ( $initial_image_x * 2 )  #  Maintains same gap both sides
+    board_sections = 8
+    while board_lines_pos <= board_width
+        painter.drawImage $initial_image_x + board_lines_pos, $initial_image_y, @line_verti 
+        board_lines_pos+=board_width / board_sections
+      end
  
+    # Paint my horizontal line
+    board_lines_pos= 0
+    board_height = HEIGHT - ( $initial_image_y * 2 )  #  Maintains same gap both sides
+    board_sections = 8
+    while board_lines_pos <= board_height
+        painter.drawImage $initial_image_x, $initial_image_y + board_lines_pos, @line_horiz
+        board_lines_pos+= board_height / board_sections
+      end
+
     # Check pattern and place origin
     case $pattern
     when "up"
@@ -348,6 +381,7 @@ class Board < Qt::Widget
 
     if key  # Prevents things happening when interacting with Window (e.g. moving with mouse)
       build_image_arrays
+      build_lines
      
       if $pretty_patterns=="on"
         patterns($orig_images[0], $active_images)
