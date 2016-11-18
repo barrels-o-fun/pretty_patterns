@@ -24,27 +24,35 @@ $pretty_patterns="off"
 
 ### Constants
 # Dimension of program window
-WIDTH=1000
-HEIGHT=800
+WIDTH=1200
+HEIGHT=900
 
 # Constants for testing
 TEST_IMG_WIDTH=400
 TEST_IMG_HEIGHT=2
-TEST_START_HEX_COLOR="#000698"
-TEST_START_HEX_OFFSET="10000" 
+TEST_HEX_COLOR="#00AAAA"
+TEST_HEX_OFFSET="FF" 
 TEST_IMG_X_MULTI=1
 TEST_IMG_Y_MULTI=2
 ###
 
 ### Game board variables
-$border_thickness=5
+$game_board=1
+$border_thickness=10
+$board_sections=8
+$line_length=10
 
+### Changing these has no effect, they will be computed in the program.
+$multiplier=0
+$board_dimension=0
+$board_square_dimension=0
+######################
 
 ### Pattern variables
 $img_width=TEST_IMG_WIDTH 
 $img_height=TEST_IMG_HEIGHT
-$img_hex_color=TEST_START_HEX_COLOR
-$img_hex_offset=TEST_START_HEX_OFFSET
+$img_hex_color=TEST_HEX_COLOR
+$img_hex_offset=TEST_HEX_OFFSET
 $img_x_multi=TEST_IMG_X_MULTI
 $img_y_multi=TEST_IMG_Y_MULTI
 
@@ -57,8 +65,8 @@ $active_images = []
 $active_images_2 = []
 
 ### Image positioning within the window 
-$initial_image_x = 40
-$initial_image_y = 40
+$initial_image_x = 100
+$initial_image_y = 50
 $image_offset_x = 0
 $image_offset_y = 0
 
@@ -88,6 +96,9 @@ class Board < Qt::Widget
     ### REF: 
     #
     # Creates initial images
+    #
+    
+    calculate_board if $game_board==1
     build_image_arrays
     build_lines
  
@@ -135,9 +146,32 @@ class Board < Qt::Widget
   end
   ### END of def build_image_arrays 
 
+
+  
+  def calculate_board
+    if WIDTH < HEIGHT
+      short_dimension = ( WIDTH - ( $initial_image_x * 2 ) - $border_thickness )
+    else
+      short_dimension = ( HEIGHT - ( $initial_image_y *2 ) - $border_thickness )
+    end
+
+    temp_board_dimension = ( short_dimension  ) 
+    $board_dimension = ( temp_board_dimension - ( temp_board_dimension % $board_sections ) )
+    $board_square_dimension = ( $board_dimension / $board_sections )
+
+  end
+  ### END of def calculate_board
+
+
+
   def build_lines
-    @line_verti = build_image(1, 1, $img_hex_color, $img_hex_offset, $border_thickness, HEIGHT-( $initial_image_y * 2 ), "verti")
-    @line_horiz = build_image(1, 1, $img_hex_color, $img_hex_offset, WIDTH-( $initial_image_x * 2 ), $border_thickness, "horiz")
+    if HEIGHT > WIDTH
+      $multiplier=( $board_dimension / $line_length ) 
+    else
+      $multiplier=( $board_dimension / $line_length )
+    end
+    @line_horiz = build_image($line_length, 1, $img_hex_color, $img_hex_offset, $multiplier, $border_thickness, "horiz")
+    @line_verti = build_image(1, $line_length, $img_hex_color, $img_hex_offset, $border_thickness, $multiplier, "verti")
   end
   ### END of def build_lines
 
@@ -246,24 +280,27 @@ class Board < Qt::Widget
   
   def drawObjects painter
 
-    # Paint my vertical line
-    board_lines_pos= 0
-    board_width = WIDTH - ( $initial_image_x * 2 )  #  Maintains same gap both sides
-    board_sections = 8
-    while board_lines_pos <= board_width
-        painter.drawImage $initial_image_x + board_lines_pos, $initial_image_y, @line_verti 
-        board_lines_pos+=board_width / board_sections
-      end
- 
-    # Paint my horizontal line
-    board_lines_pos= 0
-    board_height = HEIGHT - ( $initial_image_y * 2 )  #  Maintains same gap both sides
-    board_sections = 8
-    while board_lines_pos <= board_height
-        painter.drawImage $initial_image_x, $initial_image_y + board_lines_pos, @line_horiz
-        board_lines_pos+= board_height / board_sections
-      end
+    # Scale lines to board dimension
+    board_horiz = @line_horiz.scaled($board_dimension + $border_thickness, $border_thickness )
+    board_verti = @line_verti.scaled($border_thickness, $board_dimension + $border_thickness)
+    
 
+    # Paint horizontal lines
+    board_lines_pos_x= 0
+    while board_lines_pos_x <= ( $board_dimension + $border_thickness )
+        painter.drawImage $initial_image_x, $initial_image_y + board_lines_pos_x, board_horiz
+        board_lines_pos_x+= ( $board_dimension /  $board_sections  )
+    end
+
+    # Paint vertical lines
+    board_lines_pos_y= 0
+    while board_lines_pos_y <= ( $board_dimension + $border_thickness )
+        painter.drawImage $initial_image_x + board_lines_pos_y, $initial_image_y, board_verti
+        board_lines_pos_y+= ( $board_dimension / $board_sections )
+    end
+
+ 
+=begin
     # Check pattern and place origin
     case $pattern
     when "up"
@@ -327,6 +364,8 @@ class Board < Qt::Widget
     print "$active_images_2.count: ", $active_images_2.count, "\n"
     print "Second array, draw_image_y, stopped at: ", draw_image_y, "\n"
     print "*** END *** \n\n"
+=end
+
   end
   ### END of def drawObjects painter ###
 
@@ -371,10 +410,23 @@ class Board < Qt::Widget
         print "S rand(", temp_rand, "), ", $pattern, "\n"
  
       when Qt::Key_R.value
-        $pattern = "random"
+        $pattern = "random" unless $pretty_patterns=="off"
      
       when Qt::Key_I.value
         # Just refreshes        
+    
+      when Qt::Key_L.value
+        $line_length=rand(400)
+        print "$line_length: ", $line_length, "\n"
+
+      when Qt::Key_T.value
+        print "$border_thickness: ", $border_thickness, "\n"
+        print "$board_dimension: ", $board_dimension, "\n"
+        print "$board_dimension / $board_sections: ",  ( $board_dimension / $board_sections ), "\n"
+        print "$multiplier: ", $multiplier, "\n"
+        print "@horiz length: ", @line_horiz.width, "\n"
+        print "@verti length: ", @line_verti.height, "\n"
+        $border_thickness=rand(1..40)
       else
     end  
 
@@ -390,7 +442,8 @@ class Board < Qt::Widget
         $active_images.push $orig_images[0].scaled( $img_width, $img_height ) 
         $active_images_2.push $orig_images[0].mirrored(true,false)
       end
-      
+     
+      calculate_board 
       repaint 
     else
     end
@@ -428,7 +481,7 @@ puts "END"
 
     one_pixel = Qt::Image.new(1,1,4)  # third arg is format (see Qt Image ref)
     one_pixel.setPixel( 0, 0, 0 )  # third arg is color, decimal equiv of hex
-  
+ 
     image_temp=one_pixel.scaled(width, height )
     
     # Get decimacl from hex (required for Qt::Image.setPixel   
@@ -446,16 +499,16 @@ puts "END"
       if $build_diagnostics > 1
       print "...building image ", width, ",", height, "|  color: ", color.to_s(16), "(", color, "), offset: ", offset.to_s(16), ", pixelmax: ", pixelmax, "\n"
       end
-      image_temp.setPixel( p, 0, color )  if pixelmax=="width"
-      image_temp.setPixel( p, 0, color )  if pixelmax=="height"
+      image_temp.setPixel( p, 0, color )  if pixelmax==width
+      image_temp.setPixel( 0, p, color )  if pixelmax==height
       case $pattern
       when "random"  # Works best with orientation = "horiz"
         # Need the minus one here, as pixel co-ordinates start at zero
         (0..height-1).each { |pixel_y| image_temp.setPixel(p+rand(6), pixel_y, color ) }
       else
-        if pixelmax=width
+        if pixelmax==width
           (0..height-1).each { |pixel_y| image_temp.setPixel( p, pixel_y, color ) }
-        elsif pixelmax=height
+        elsif pixelmax==height
           (0..width-1).each { |pixel_x| image_temp.setPixel( pixel_x, p, color ) }
         end
       end
