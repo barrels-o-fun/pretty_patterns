@@ -16,11 +16,18 @@
 # It makes pretty colors!!!
 #
 
+include Math
+
 ### Debug ###
-$build_diagnostics=0
+$build_diagnostics=1
 $painter_diagnostics=0
 $oneimage=1
-$pretty_patterns="off"
+$pretty_patterns="on"
+$game_board=true
+$persp_board=false
+$delay=0
+$delay_refresh_space=2
+$delay_refresh_pattern=1
 
 ### Constants
 # Dimension of program window
@@ -28,18 +35,17 @@ WIDTH=1200
 HEIGHT=900
 
 # Constants for testing
-TEST_IMG_WIDTH=400
+TEST_IMG_WIDTH=450
 TEST_IMG_HEIGHT=2
 TEST_HEX_COLOR="#00AAAA"
 TEST_HEX_OFFSET="FF" 
 TEST_IMG_X_MULTI=1
-TEST_IMG_Y_MULTI=2
+TEST_IMG_Y_MULTI=1
 ###
 
 ### Game board variables
-$game_board=1
-$border_thickness=10
-$board_sections=8
+$border_thickness=1
+$board_sections=6
 $line_length=10
 
 ### Changing these has no effect, they will be computed in the program.
@@ -47,6 +53,25 @@ $multiplier=0
 $board_dimension=0
 $board_square_dimension=0
 ######################
+
+### Image positioning within the window 
+$initial_image_x = 50
+$initial_image_y = 30
+$image_offset_x = 0
+$image_offset_y = 0
+
+## Perspective board
+$board_persp_bottom= WIDTH - ( 2 * $initial_image_x )
+$board_persp_offset= 60
+$board_persp_top= $board_persp_bottom - $board_persp_offset
+$board_persp_height= HEIGHT - ( 2 * $initial_image_y )
+
+
+# Required for perspective board
+$top_divisors=[]
+$bottom_divisors=[]
+$triangle_lengths=[]
+$triangle_sections=[]
 
 ### Pattern variables
 $img_width=TEST_IMG_WIDTH 
@@ -64,11 +89,6 @@ $orig_images = []
 $active_images = []
 $active_images_2 = []
 
-### Image positioning within the window 
-$initial_image_x = 100
-$initial_image_y = 50
-$image_offset_x = 0
-$image_offset_y = 0
 
 ####
 
@@ -98,7 +118,8 @@ class Board < Qt::Widget
     # Creates initial images
     #
     
-    calculate_board if $game_board==1
+    calculate_board if $game_board==true
+    calculate_board_persp if $persp_board == true
     build_image_arrays
     build_lines
  
@@ -139,6 +160,8 @@ class Board < Qt::Widget
     # Empty existing array
     $active_images=[]
     $active_images_2=[]
+    $active_images_3=[]
+    $active_images_4=[]
     $orig_images=[]
     $orig_images.push build_image($img_width, $img_height, $img_hex_color, $img_hex_offset, $img_x_multi, $img_y_multi)
     # Create mirror of the first array
@@ -161,6 +184,70 @@ class Board < Qt::Widget
 
   end
   ### END of def calculate_board
+  
+
+
+  def calculate_board_persp
+    if WIDTH < HEIGHT
+      short_dimension = ( WIDTH - ( $initial_image_x * 2 ) - $border_thickness )
+    else
+      short_dimension = ( HEIGHT - ( $initial_image_y *2 ) - $border_thickness )
+    end
+   
+    # Calculate length
+    # $board_persp_bottom= WIDTH - ( 2 * $initial_image_x )
+    # $board_persp_offset=100
+    # $board_persp_top= $board_persp_bottom - $board_persp_offset
+    
+    
+    # Reset arrays, prior to building with new parameters     
+    $top_divisors=[]
+    $bottom_divisors=[]
+    $triangle_lengths=[]
+    $triangle_sections=[]
+
+    top_division = $board_persp_top / $board_sections
+    bottom_division = ($board_persp_bottom - $border_thickness )/ $board_sections
+    (0..$board_persp_top).each do |divisor|
+      if divisor % top_division == 0
+        $top_divisors.push divisor
+      end 
+    end
+    (0..$board_persp_bottom).each do |divisor|
+      if divisor % bottom_division == 0
+        $bottom_divisors.push divisor
+      end 
+    end
+
+    (0..$board_sections).each do |num|
+        case num
+#        when 0
+ #         a = $board_persp_offset 
+        when (0..( $board_sections / 2 ))
+          a = $top_divisors[num] + ( $board_persp_offset / 2 )- $bottom_divisors[num]
+        when (($board_sections / 2 )..$board_sections)
+          a = $bottom_divisors[num] - ( $top_divisors[num] + ( $board_persp_offset / 2 ) )
+        else
+          a = 500
+        end      
+      b = HEIGHT - ( $initial_image_y * 2)
+      c = sqrt(Complex((a * a) + (b*b)))
+      print "c: ", c, "\n"
+      $triangle_lengths.push c.to_i
+      if a > 0
+        $triangle_sections.push ( $triangle_lengths[num] / a )
+      else
+        $triangle_sections.push 0
+      end
+    end
+    print "Top divisors: ", $top_divisors.to_s, "\n"
+    print "Bottom divisors: ", $bottom_divisors.to_s, "\n"
+    print "Triangle_lengths: ", $triangle_lengths.to_s, "\n"
+    print "Triangle_sections: ", $triangle_sections.to_s, "\n"
+
+
+  end
+     
 
 
 
@@ -181,18 +268,19 @@ class Board < Qt::Widget
       # Patterns were added as part of testing, maybe tidy up later?
       case $pattern
       when "up"
-        p = $initial_image_y
+        width = $img_width / 4
+        p = 0
         q = 0
-        while p < ( HEIGHT + $initial_image_y )
+        while p < ( HEIGHT )
           q+=$offset
-          image_array.push image_num.scaled( ( $img_width + q ), $img_height ) 
-        p+=( $img_height )
+          image_array.push image_num.scaled( ( width + q ), $img_height ) 
+        p+=( $img_height * 2)
         end
   
       when "down"
-        p = $initial_image_y
+        p = 0
         q = 0
-        while p < ( HEIGHT + $initial_image_y  )
+        while p < ( HEIGHT )
           q+=$offset
           image_array.push image_num.scaled( ( $img_width - q ), $img_height ) 
           p+=( $img_height )
@@ -200,9 +288,9 @@ class Board < Qt::Widget
         end
 
       when "down-up"
-        p = $initial_image_y
+        p = 0
         q = 0
-        while p < ( HEIGHT + $initial_image_y  )
+        while p < ( HEIGHT  )
           if p < ( HEIGHT / 2 )
             q+=$offset
           else
@@ -216,21 +304,23 @@ class Board < Qt::Widget
       end
 
       when "up-down"
-        p = $initial_image_y
+        width = $img_width / 4
+        p = 0
         q = 0
-        while p < ( HEIGHT + $initial_image_y )
+        while p < ( HEIGHT  )
           if p < ( HEIGHT / 2 )
             q+=$offset
           else
             q-=$offset
           end
-          image_array.push image_num.scaled( ( $img_width + q ), $img_height ) 
+          image_array.push image_num.scaled( ( width + q ), $img_height ) 
         p+=( $img_height )
         end
    
       when "random"
         p = 0
         q = rand(15)
+        pre_height=height
         height=rand(0.1..0.2)*10
         print "height: ", height, "\n"
         while p < ( HEIGHT * 2 )
@@ -283,35 +373,80 @@ class Board < Qt::Widget
     # Scale lines to board dimension
     board_horiz = @line_horiz.scaled($board_dimension + $border_thickness, $border_thickness )
     board_verti = @line_verti.scaled($border_thickness, $board_dimension + $border_thickness)
-    
-
-    # Paint horizontal lines
-    board_lines_pos_x= 0
-    while board_lines_pos_x <= ( $board_dimension + $border_thickness )
-        painter.drawImage $initial_image_x, $initial_image_y + board_lines_pos_x, board_horiz
+   
+    if $game_board==true
+      # Paint horizontal lines
+      board_lines_pos_x= 0
+      while board_lines_pos_x <= ( $board_dimension + $border_thickness )
+        painter.drawImage ( ( WIDTH - $board_dimension ) / 2 ), $initial_image_y + board_lines_pos_x, board_horiz
         board_lines_pos_x+= ( $board_dimension /  $board_sections  )
-    end
+      end
 
-    # Paint vertical lines
-    board_lines_pos_y= 0
-    while board_lines_pos_y <= ( $board_dimension + $border_thickness )
-        painter.drawImage $initial_image_x + board_lines_pos_y, $initial_image_y, board_verti
+      # Paint vertical lines
+      board_lines_pos_y= 0
+      while board_lines_pos_y <= ( $board_dimension + $border_thickness )
+        painter.drawImage ( ( WIDTH - $board_dimension ) / 2 ) + board_lines_pos_y, $initial_image_y, board_verti
         board_lines_pos_y+= ( $board_dimension / $board_sections )
+      end
+    
     end
 
+
+    if $persp_board==true
+    # Paint 3D board (in progress)
+
+      board_top = @line_horiz.scaled($board_persp_top, $border_thickness )
+      board_bottom = @line_horiz.scaled($board_persp_bottom, $border_thickness )
+      painter.drawImage $initial_image_x + ( $board_persp_offset / 2 ), $initial_image_y, board_top
+      painter.drawImage $initial_image_x, HEIGHT - $initial_image_y, board_bottom
  
-=begin
+      (0..$triangle_lengths.count-1).each do |num|
+        if $triangle_sections[num]!=0
+          line_sec = @line_verti.scaled($border_thickness, $triangle_sections[num] )
+          x_adjust=0
+          y_adjust=$initial_image_y
+          (0..$triangle_lengths.count-1).each do |adjust|
+          if $triangle_sections[num]!=0
+            while y_adjust < $board_persp_height + $initial_image_y
+              painter.drawImage $top_divisors[num] + ($board_persp_offset / 2 ) + $initial_image_x - x_adjust, y_adjust,  line_sec
+              if num < ( $board_sections / 2 )
+                x_adjust+=1
+              elsif num > ( $board_sections / 2 )
+                x_adjust-=1
+              end
+              y_adjust+=$triangle_sections[num]  
+            end
+          else
+          end
+        end
+        elsif$triangle_sections[num]==0
+          print "HERE"
+          middle_line = @line_verti.scaled($border_thickness, $board_persp_height ) 
+          painter.drawImage $top_divisors[num] + ($board_persp_offset / 2 ) + $initial_image_x, $initial_image_y, middle_line
+        else # Catch negative numbers
+        end
+      end 
+    end
+    # END of perspective board code
+
+    ### PRETTY PATTERNS ###
+    ## 
     # Check pattern and place origin
+    draw_image_y = 0
     case $pattern
     when "up"
-      draw_image_x = rand( 0..( WIDTH / 2 ) ) 
+      draw_image_x = rand(( $initial_image_x * 2)..( WIDTH / 2 ))
+    when "down"
+      draw_image_x = $initial_image_x
+    when "down-up"
+      draw_image_x = WIDTH - $initial_image_x - $active_images[0].width
+    when "up-down"
+      draw_image_x = WIDTH - ( $initial_image_x / 2 ) - $active_images[0].width
     when "random"
       draw_image_x = rand(300) if $pattern=="random"
     else
       draw_image_x = $initial_image_x
     end
-    draw_image_y = $initial_image_y
-
 
     # Draw images from first array, stacking each based on the Y axis (starting from top)
     $active_images.each do |image|
@@ -320,6 +455,20 @@ class Board < Qt::Widget
       case $pattern
       when "up"
         draw_image_x-=1
+      when "down-up"
+        if draw_image_y < ( HEIGHT / 2 )
+         draw_image_x+=3
+        elsif draw_image_y > (HEIGHT / 2 )
+         draw_image_x-=3
+        else
+        end
+      when "up-down"
+        if draw_image_y < ( HEIGHT / 2 ) 
+         draw_image_x-=1
+        elsif draw_image_y > ( HEIGHT / 2 ) 
+         draw_image_x+=1
+        else
+        end
       else
         draw_image_x+=1
       end
@@ -332,15 +481,21 @@ class Board < Qt::Widget
   
 
     # Draw images from second array, stacking based on Y axis (starting from bottom)
+    draw_image_y = HEIGHT - $active_images[0].height
     case $pattern
     when "up"
-      draw_image_x = rand( ( WIDTH / 2 )..WIDTH ) 
+      draw_image_x = rand( ( WIDTH / 2 )..WIDTH - ( $initial_image_x * 2 ) ) 
+    when "down"
+      draw_image_x = $initial_image_x
+    when "down-up"
+      draw_image_x = $initial_image_x 
+    when "down-up"
+      draw_image_x = $initial_image_x / 2 
     when "random"
       draw_image_x = rand(WIDTH)
     else
       draw_image_x = $initial_image_x
     end
-    draw_image_y = HEIGHT
 
     $count_me=0  # Added this var to check all images were being printed
     $active_images_2.each do |image|
@@ -350,6 +505,20 @@ class Board < Qt::Widget
       case $pattern
       when "up"
         draw_image_x-=1
+      when "down-up"
+        if draw_image_y < ( HEIGHT / 2 )
+         draw_image_x+=1
+        elsif draw_image_y > ( HEIGHT / 2 )
+         draw_image_x-=1
+        else
+        end
+      when "up-down"
+        if draw_image_y < ( HEIGHT / 2 )
+         draw_image_x+=1
+        elsif draw_image_y > ( HEIGHT / 2 )
+         draw_image_x-=1
+        else
+        end
       when "random"
         temp_rand=rand()
         draw_image_x+=temp_rand
@@ -358,13 +527,57 @@ class Board < Qt::Widget
       end
       if $painter_diagnostics==1
         print $count_me, ":: Image, W:", image.width, ", H:", image.height, ", draw_image_x: ", draw_image_x, ", draw_image_y: ", draw_image_y, "\n"
+        print "$active_images_2.count: ", $active_images_2.count, "\n"
+        print "Second array, draw_image_y, stopped at: ", draw_image_y, "\n"
+        print "*** END *** \n\n"
       end
     end
+    
 
-    print "$active_images_2.count: ", $active_images_2.count, "\n"
-    print "Second array, draw_image_y, stopped at: ", draw_image_y, "\n"
-    print "*** END *** \n\n"
-=end
+    # Draw images for the third pattern (if enabled) - Stacks images starting from the TOP
+    case $pattern
+    when "down"
+      draw_image_x = WIDTH - $initial_image_x - $active_images[0].width 
+      draw_image_y = 0
+      # Draw images from first array, but place on new Y
+      $active_images.each do |image|
+      painter.drawImage draw_image_x, draw_image_y, image
+      draw_image_y+=image.height + $image_offset_y
+        draw_image_x+=1
+      end
+    when "down-up"
+      draw_image_x = ( WIDTH / 2 ) - ( $active_images[0].width / 2 )
+      draw_image_y-= 0
+      $active_images.each do |image|
+        painter.drawImage draw_image_x, draw_image_y, image
+        draw_image_y+=image.height + $image_offset_y
+        if draw_image_y < ( HEIGHT / 2 )
+         draw_image_x+=1
+        else
+         draw_image_x-=1
+        end
+      end
+    # when "random"
+    # draw_image_x = rand(300) if $pattern=="random"
+    else
+    end
+
+    
+    # Draw images for the fourth pattern (if enabled) - Stacks images, starting from the BOTTOM
+    case $pattern
+    when "down"
+      draw_image_x = WIDTH - $initial_image_x - $active_images[0].width 
+      draw_image_y = HEIGHT - $active_images[0].height
+      # Draw images from first array, but place on new Y
+      $active_images_2.each do |image|
+      painter.drawImage draw_image_x, draw_image_y, image
+      draw_image_y-=image.height + $image_offset_y
+        draw_image_x+=1
+      end
+#    when "random"
+#      draw_image_x = rand(300) if $pattern=="random"
+    else
+    end
 
   end
   ### END of def drawObjects painter ###
@@ -381,8 +594,12 @@ class Board < Qt::Widget
         exit 0
       
       when Qt::Key_Space.value
-        $img_hex_color=rand("ffffff".hex).to_s(16)
-        print "Color: ", $img_hex_color, "\n"
+        $delay+=1
+        if $delay==$delay_refresh_space
+          $img_hex_color=rand("ffffff".hex).to_s(16)
+          print "Color: ", $img_hex_color, "\n"
+          $delay=0
+        end
       
       when Qt:: Key_B.value # Blue
         temp_rand=rand(1000)
@@ -395,28 +612,27 @@ class Board < Qt::Widget
         print "hex_offset: ", $img_hex_offset, "\n"
       
       when Qt::Key_S.value
-        temp_rand=rand(4) 
-        case temp_rand 
-        when 0
-          $pattern = "up"
-        when 1
-          $pattern = "down"
-        when 2
-          $pattern = "up-down"
-        when 3
-          $pattern = "down-up"
-        else
-        end 
-        print "S rand(", temp_rand, "), ", $pattern, "\n"
+          case $pattern
+          when "up"
+            $pattern = "down"
+          when "down"
+            $pattern = "up-down"
+          when "up-down"
+            $pattern = "down-up"
+          when "down-up"
+            $pattern = "up"
+          else
+            $pattern = "up"
+          end 
  
       when Qt::Key_R.value
-        $pattern = "random" unless $pretty_patterns=="off"
+        $pattern = "random" # unless $pretty_patterns=="off"
      
       when Qt::Key_I.value
         # Just refreshes        
     
       when Qt::Key_L.value
-        $line_length=rand(400)
+        $line_length=rand(1..$board_dimension)
         print "$line_length: ", $line_length, "\n"
 
       when Qt::Key_T.value
@@ -444,6 +660,7 @@ class Board < Qt::Widget
       end
      
       calculate_board 
+      calculate_board_persp
       repaint 
     else
     end
@@ -501,19 +718,13 @@ puts "END"
       end
       image_temp.setPixel( p, 0, color )  if pixelmax==width
       image_temp.setPixel( 0, p, color )  if pixelmax==height
-      case $pattern
-      when "random"  # Works best with orientation = "horiz"
-        # Need the minus one here, as pixel co-ordinates start at zero
-        (0..height-1).each { |pixel_y| image_temp.setPixel(p+rand(6), pixel_y, color ) }
-      else
-        if pixelmax==width
-          (0..height-1).each { |pixel_y| image_temp.setPixel( p, pixel_y, color ) }
-        elsif pixelmax==height
+      if pixelmax==width
+        (0..height-1).each { |pixel_y| image_temp.setPixel( p, pixel_y, color ) }
+      elsif pixelmax==height
           (0..width-1).each { |pixel_x| image_temp.setPixel( pixel_x, p, color ) }
-        end
       end
-      color+=offset
-      p+=1
+    color+=offset
+    p+=1
     end
     
     if $build_diagnostics > 0
