@@ -39,14 +39,16 @@ HEIGHT=800
 # Constants for testing
 TEST_IMG_WIDTH=450
 TEST_IMG_HEIGHT=2
-TEST_HEX_COLOR="#4456AA"
-TEST_HEX_OFFSET="56" 
+TEST_HEX_COLOR="#0000FF"
+TEST_HEX_OFFSET="FF" 
 TEST_IMG_X_MULTI=1
 TEST_IMG_Y_MULTI=1
 ###
 
 ### Game board variables
-$border_thickness=20
+$board_thickness=10
+$border_increase=20
+$border_offset=6
 $board_sections=8
 $line_length=10
 
@@ -59,8 +61,8 @@ $board_square_move_y=0
 ######################
 
 ### Image positioning within the window 
-$initial_image_x = 20
-$initial_image_y = 30
+$initial_image_x = 100
+$initial_image_y = 50
 $image_offset_x = 0
 $image_offset_y = 0
 
@@ -177,9 +179,9 @@ class Board < Qt::Widget
   
   def calculate_board
     if WIDTH < HEIGHT
-      short_dimension = ( WIDTH - ( $initial_image_x * 2 ) - $border_thickness )
+      short_dimension = ( WIDTH - ( $initial_image_x * 2 ) - $board_thickness )
     else
-      short_dimension = ( HEIGHT - ( $initial_image_y * 2 ) - $border_thickness )
+      short_dimension = ( HEIGHT - ( $initial_image_y * 2 ) - $board_thickness )
     end
 
     temp_board_dimension = ( short_dimension  ) 
@@ -193,7 +195,7 @@ class Board < Qt::Widget
     if $board_diagnostics == 1
       print "***** BOARD ATTRIBUTES ******\n"
       print "$board_dimension: ", $board_dimension, "\n"
-      print "$border_thickness: ", $border_thickness, "\n"
+      print "$board_thickness: ", $board_thickness, "\n"
       print "$board_left_limit: ", $board_left_limit, "\n"
       print "$board_right_limit: ", $board_right_limit, "\n"
       print "$board_top_limit: ", $board_top_limit, "\n"
@@ -214,9 +216,9 @@ class Board < Qt::Widget
 
   def calculate_board_persp
     if WIDTH < HEIGHT
-      short_dimension = ( WIDTH - ( $initial_image_x * 2 ) - $border_thickness )
+      short_dimension = ( WIDTH - ( $initial_image_x * 2 ) - $board_thickness )
     else
-      short_dimension = ( HEIGHT - ( $initial_image_y *2 ) - $border_thickness )
+      short_dimension = ( HEIGHT - ( $initial_image_y *2 ) - $board_thickness )
     end
    
     # Calculate length
@@ -232,7 +234,7 @@ class Board < Qt::Widget
     $triangle_sections=[]
 
     top_division = $board_persp_top / $board_sections
-    bottom_division = ($board_persp_bottom - $border_thickness )/ $board_sections
+    bottom_division = ($board_persp_bottom - $board_thickness )/ $board_sections
     (0..$board_persp_top).each do |divisor|
       if divisor % top_division == 0
         $top_divisors.push divisor
@@ -282,24 +284,25 @@ class Board < Qt::Widget
     else
       $multiplier=( $board_dimension / $line_length )
     end
-    @line_horiz = build_image($line_length, 1, $img_hex_color, $img_hex_offset, $multiplier, $border_thickness, "horiz")
-    @line_verti = build_image(1, $line_length, $img_hex_color, $img_hex_offset, $border_thickness, $multiplier, "verti")
+    @line_horiz = build_image($line_length, 1, $img_hex_color, $img_hex_offset, $multiplier, $board_thickness, "horiz")
+    @line_verti = build_image(1, $line_length, $img_hex_color, $img_hex_offset, $board_thickness, $multiplier, "verti")
 
     # Create border
+    # 
     $board_horiz_border=[]
     local_hex_color=0
     local_x_offset=0
-    (1..$border_thickness).each do  |step|
-      $board_horiz_border.push build_image($board_dimension + local_x_offset, 1, ($img_hex_color.hex + local_hex_color).to_s(16), $img_hex_offset, 1, 1, "verti")
+    (1..$board_thickness+$border_increase).each do  |step|
+      $board_horiz_border.push build_image($board_dimension - $board_thickness + ( 2 *  $border_offset ) + 2 + local_x_offset, 1, ($img_hex_color.hex + local_hex_color).to_s(16), $img_hex_offset, 1, 1, "verti")
       local_hex_color+=$img_hex_offset.hex
       local_x_offset+=2
     end
 
+    $board_verti_border=[]
     local_hex_color=0
     local_y_offset=0
-    $board_verti_border=[]
-    (1..$border_thickness).each do |step|
-      $board_verti_border.push build_image(1, $board_dimension + local_y_offset, ($img_hex_color.hex + local_hex_color).to_s(16), $img_hex_offset, 1, 1, "horiz")
+    (1..$board_thickness+$border_increase).each do |step|
+      $board_verti_border.push build_image(1, $board_dimension - $board_thickness + ( 2 * $border_offset ) + 2 + local_y_offset, ($img_hex_color.hex + local_hex_color).to_s(16), $img_hex_offset, 1, 1, "horiz")
       local_hex_color+=$img_hex_offset.hex
       local_y_offset+=2
     end
@@ -419,12 +422,12 @@ class Board < Qt::Widget
   def drawObjects painter
 
     # Scale lines to board dimension
-    board_horiz = @line_horiz.scaled($board_dimension + $border_thickness, $border_thickness )
-    board_verti = @line_verti.scaled($border_thickness, $board_dimension + $border_thickness )
-    board_square_horiz_top = @line_horiz.scaled($board_square_dimension + $border_thickness, $border_thickness )
+    board_horiz = @line_horiz.scaled($board_dimension + $board_thickness, $board_thickness )
+    board_verti = @line_verti.scaled($board_thickness, $board_dimension + $board_thickness )
+    board_square_horiz_top = @line_horiz.scaled($board_square_dimension + $board_thickness, $board_thickness )
     board_square_horiz_top.invertPixels
     board_square_horiz_bottom = board_square_horiz_top.mirrored(false,true)
-    board_square_verti_left = @line_horiz.scaled($border_thickness, $board_square_dimension + $border_thickness)
+    board_square_verti_left = @line_horiz.scaled($board_thickness, $board_square_dimension + $board_thickness)
     board_square_verti_left.invertPixels
     board_square_verti_right = board_square_verti_left.mirrored(true, false)
    
@@ -448,8 +451,8 @@ class Board < Qt::Widget
       local_x_offset=0
       local_y_offset=0
       $board_horiz_border.each do |paint|
-        painter.drawImage $board_left_limit + $border_thickness - local_x_offset, $initial_image_y - local_y_offset, paint
-        painter.drawImage $board_left_limit + $border_thickness - local_x_offset, $initial_image_y + $board_dimension + $border_thickness - 1 + local_y_offset, paint
+        painter.drawImage $board_left_limit + $board_thickness - $border_offset - local_x_offset, $initial_image_y + $board_thickness - $border_offset - 2 - local_y_offset, paint
+        painter.drawImage $board_left_limit + $board_thickness - $border_offset - local_x_offset, $initial_image_y + $board_dimension + $border_offset + 1 + local_y_offset, paint
         local_x_offset+=1
         local_y_offset+=1
       end
@@ -458,8 +461,8 @@ class Board < Qt::Widget
       local_x_offset=0
       local_y_offset=0
       $board_verti_border.each do |paint|
-        painter.drawImage $board_left_limit + $border_thickness - local_x_offset, $initial_image_y - local_y_offset, paint
-        painter.drawImage $board_right_limit + $board_square_dimension + $border_thickness - 1 + local_x_offset, $initial_image_y - local_y_offset, paint
+        painter.drawImage $board_left_limit + $board_thickness - $border_offset - local_x_offset, $initial_image_y + $board_thickness - $border_offset  - 1 - local_y_offset, paint
+        painter.drawImage $board_right_limit + $board_square_dimension + $border_offset + 1 + local_x_offset, $initial_image_y + $board_thickness - $border_offset - 1 - local_y_offset, paint
         local_x_offset+=1
         local_y_offset+=1
       end
@@ -481,14 +484,14 @@ class Board < Qt::Widget
     if $persp_board==true
     # Paint 3D board (in progress)
 
-      board_top = @line_horiz.scaled($board_persp_top, $border_thickness )
-      board_bottom = @line_horiz.scaled($board_persp_bottom, $border_thickness )
+      board_top = @line_horiz.scaled($board_persp_top, $board_thickness )
+      board_bottom = @line_horiz.scaled($board_persp_bottom, $board_thickness )
       painter.drawImage $initial_image_x + ( $board_persp_offset / 2 ), $initial_image_y, board_top
       painter.drawImage $initial_image_x, HEIGHT - $initial_image_y, board_bottom
  
       (0..$triangle_lengths.count-1).each do |num|
         if $triangle_sections[num]!=0
-          line_sec = @line_verti.scaled($border_thickness, $triangle_sections[num] )
+          line_sec = @line_verti.scaled($board_thickness, $triangle_sections[num] )
           x_adjust=0
           y_adjust=$initial_image_y
           (0..$triangle_lengths.count-1).each do |adjust|
@@ -507,7 +510,7 @@ class Board < Qt::Widget
         end
         elsif$triangle_sections[num]==0
           print "HERE"
-          middle_line = @line_verti.scaled($border_thickness, $board_persp_height ) 
+          middle_line = @line_verti.scaled($board_thickness, $board_persp_height ) 
           painter.drawImage $top_divisors[num] + ($board_persp_offset / 2 ) + $initial_image_x, $initial_image_y, middle_line
         else # Catch negative numbers
         end
@@ -724,13 +727,13 @@ class Board < Qt::Widget
         print "$line_length: ", $line_length, "\n"
 
       when Qt::Key_T.value
-        print "$border_thickness: ", $border_thickness, "\n"
+        print "$board_thickness: ", $board_thickness, "\n"
         print "$board_dimension: ", $board_dimension, "\n"
         print "$board_dimension / $board_sections: ",  ( $board_dimension / $board_sections ), "\n"
         print "$multiplier: ", $multiplier, "\n"
         print "@horiz length: ", @line_horiz.width, "\n"
         print "@verti length: ", @line_verti.height, "\n"
-        $border_thickness=rand(1..50)
+        $board_thickness=rand(1..50)
         $board_square_move_x = 0
         $board_square_move_y = 0
 
@@ -742,7 +745,7 @@ class Board < Qt::Widget
       when Qt::Key_Up.value
         $board_square_move_y-= $board_square_dimension  unless $board_square_move_y <= 0
       when Qt::Key_Down.value
-        $board_square_move_y+= $board_square_dimension  unless $board_square_move_y >= $board_bottom_limit - $board_square_dimension - $initial_image_y
+        $board_square_move_y+= $board_square_dimension  unless $board_square_move_y >= $board_bottom_limit -  ( 2 * $board_square_dimension )
 
       # Change board size
       when Qt::Key_Plus.value
