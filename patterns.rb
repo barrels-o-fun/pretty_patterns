@@ -19,8 +19,10 @@
 include Math
 
 ### Debug ###
-$build_diagnostics=1
+$build_diagnostics=0
 $painter_diagnostics=0
+$board_diagnostics=1
+$board_persp_diagnostics=0 
 $oneimage=1
 $pretty_patterns="on"
 $game_board=true
@@ -32,7 +34,7 @@ $delay_refresh_pattern=1
 ### Constants
 # Dimension of program window
 WIDTH=1200
-HEIGHT=900
+HEIGHT=800
 
 # Constants for testing
 TEST_IMG_WIDTH=450
@@ -45,7 +47,7 @@ TEST_IMG_Y_MULTI=1
 
 ### Game board variables
 $border_thickness=1
-$board_sections=6
+$board_sections=8
 $line_length=10
 
 ### Changing these has no effect, they will be computed in the program.
@@ -57,7 +59,7 @@ $board_square_move_y=0
 ######################
 
 ### Image positioning within the window 
-$initial_image_x = 50
+$initial_image_x = 20
 $initial_image_y = 30
 $image_offset_x = 0
 $image_offset_y = 0
@@ -184,9 +186,24 @@ class Board < Qt::Widget
     $board_dimension = ( temp_board_dimension - ( temp_board_dimension % $board_sections ) )
     $board_square_dimension = ( $board_dimension / $board_sections )
     $board_left_limit = ( ( WIDTH - $board_dimension ) / 2  )
-    $board_right_limit = $board_left_limit + ( ( $board_sections - 1 ) * $board_square_dimension ) - $board_square_dimension
+    $board_right_limit = $board_left_limit + ( ( $board_sections - 1 ) * $board_square_dimension )  
     $board_top_limit = $initial_image_y 
     $board_bottom_limit = HEIGHT - $initial_image_y - $board_square_dimension
+
+    if $board_diagnostics == 1
+      print "***** BOARD ATTRIBUTES ******"
+      print "$board_dimension: ", $board_dimension, "\n"
+      print "$board_left_limit: ", $board_left_limit, "\n"
+      print "$board_right_limit: ", $board_right_limit, "\n"
+      print "$board_top_limit: ", $board_top_limit, "\n"
+      print "$board_bottom_limit: ", $board_bottom_limit, "\n"
+      print "$board_sections: ", $board_sections, "\n"
+      print "$board_square_dimension: ", $board_square_dimension, "\n"
+      print "Modulus: ", $board_dimension % $board_sections, "\n"
+      print "$board_square_move_x: ", $board_square_move_x, "\n"
+      print "$board_square_move_x_actual: ", $board_square_move_x + $board_left_limit, "\n"
+      print "*****************************"
+    end
   end
   ### END of def calculate_board
   
@@ -237,7 +254,6 @@ class Board < Qt::Widget
         end      
       b = HEIGHT - ( $initial_image_y * 2)
       c = sqrt(Complex((a * a) + (b*b)))
-      print "c: ", c, "\n"
       $triangle_lengths.push c.to_i
       if a > 0
         $triangle_sections.push ( $triangle_lengths[num] / a )
@@ -245,11 +261,12 @@ class Board < Qt::Widget
         $triangle_sections.push 0
       end
     end
-    print "Top divisors: ", $top_divisors.to_s, "\n"
-    print "Bottom divisors: ", $bottom_divisors.to_s, "\n"
-    print "Triangle_lengths: ", $triangle_lengths.to_s, "\n"
-    print "Triangle_sections: ", $triangle_sections.to_s, "\n"
-
+    if $board_persp_diagnostics == 1
+      print "Top divisors: ", $top_divisors.to_s, "\n"
+      print "Bottom divisors: ", $bottom_divisors.to_s, "\n"
+      print "Triangle_lengths: ", $triangle_lengths.to_s, "\n"
+      print "Triangle_sections: ", $triangle_sections.to_s, "\n"
+    end
 
   end
      
@@ -273,7 +290,7 @@ class Board < Qt::Widget
       # Patterns were added as part of testing, maybe tidy up later?
       case $pattern
       when "up"
-        width = $img_width / 4
+        width = HEIGHT / 4
         p = 0
         q = 0
         while p < ( HEIGHT )
@@ -283,11 +300,12 @@ class Board < Qt::Widget
         end
   
       when "down"
+        width = HEIGHT / 2
         p = 0
         q = 0
         while p < ( HEIGHT )
           q+=$offset
-          image_array.push image_num.scaled( ( $img_width - q ), $img_height ) 
+          image_array.push image_num.scaled( ( width - q ), $img_height ) 
           p+=( $img_height )
         break if ( image_array[-1].width < 1 )
         end
@@ -616,6 +634,8 @@ class Board < Qt::Widget
           $img_hex_color=rand("ffffff".hex).to_s(16)
           print "Color: ", $img_hex_color, "\n"
           $delay=0
+          $board_square_move_x=( rand(1..$board_sections-1) * $board_square_dimension )
+          $board_square_move_y=( rand(1..$board_sections-1) * $board_square_dimension )
         end
       
       when Qt:: Key_B.value # Blue
@@ -660,16 +680,28 @@ class Board < Qt::Widget
         print "@horiz length: ", @line_horiz.width, "\n"
         print "@verti length: ", @line_verti.height, "\n"
         $border_thickness=rand(1..40)
+        $board_square_move_x = 0
+        $board_square_move_y = 0
 
       ## Board highlight_movement
       when Qt::Key_Left.value
-        $board_square_move_x-= $board_square_dimension  unless $board_square_move_x < $board_left_limit - $board_square_dimension
+        $board_square_move_x-= $board_square_dimension  unless $board_square_move_x <= 0
       when Qt::Key_Right.value
-        $board_square_move_x+= $board_square_dimension  unless $board_square_move_x > $board_right_limit - $board_square_dimension
+        $board_square_move_x+= $board_square_dimension  unless $board_square_move_x >= $board_right_limit - $board_left_limit
       when Qt::Key_Up.value
-        $board_square_move_y-= $board_square_dimension  unless $board_square_move_y <= $board_top_limit
+        $board_square_move_y-= $board_square_dimension  unless $board_square_move_y <= 0
       when Qt::Key_Down.value
         $board_square_move_y+= $board_square_dimension  unless $board_square_move_y >= $board_bottom_limit - $board_square_dimension
+
+      # Change board size
+      when Qt::Key_Plus.value
+        $board_sections+=1
+        $board_square_move_x=0
+        $board_square_move_y=0
+      when Qt::Key_Minus.value
+        $board_sections-=1 unless $board_sections==1
+        $board_square_move_x=0
+        $board_square_move_y=0
       else
     end  
 
