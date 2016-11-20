@@ -52,6 +52,8 @@ $line_length=10
 $multiplier=0
 $board_dimension=0
 $board_square_dimension=0
+$board_square_move_x=0
+$board_square_move_y=0
 ######################
 
 ### Image positioning within the window 
@@ -181,7 +183,10 @@ class Board < Qt::Widget
     temp_board_dimension = ( short_dimension  ) 
     $board_dimension = ( temp_board_dimension - ( temp_board_dimension % $board_sections ) )
     $board_square_dimension = ( $board_dimension / $board_sections )
-
+    $board_left_limit = ( ( WIDTH - $board_dimension ) / 2  )
+    $board_right_limit = $board_left_limit + ( ( $board_sections - 1 ) * $board_square_dimension ) - $board_square_dimension
+    $board_top_limit = $initial_image_y 
+    $board_bottom_limit = HEIGHT - $initial_image_y - $board_square_dimension
   end
   ### END of def calculate_board
   
@@ -373,21 +378,33 @@ class Board < Qt::Widget
     # Scale lines to board dimension
     board_horiz = @line_horiz.scaled($board_dimension + $border_thickness, $border_thickness )
     board_verti = @line_verti.scaled($border_thickness, $board_dimension + $border_thickness)
+    board_square_horiz = @line_horiz.scaled($board_square_dimension + $border_thickness, $border_thickness )
+    board_square_verti = @line_horiz.scaled($border_thickness, $board_square_dimension + $border_thickness)
+    board_square_horiz.invertPixels
+    board_square_verti.invertPixels
    
     if $game_board==true
       # Paint horizontal lines
-      board_lines_pos_x= 0
-      while board_lines_pos_x <= ( $board_dimension + $border_thickness )
-        painter.drawImage ( ( WIDTH - $board_dimension ) / 2 ), $initial_image_y + board_lines_pos_x, board_horiz
-        board_lines_pos_x+= ( $board_dimension /  $board_sections  )
+      board_lines_pos_y= 0
+      while board_lines_pos_y <= ( $board_dimension + $border_thickness )
+        painter.drawImage $board_left_limit, $initial_image_y + board_lines_pos_y, board_horiz
+        board_lines_pos_y+= ( $board_dimension /  $board_sections  )
       end
 
       # Paint vertical lines
-      board_lines_pos_y= 0
-      while board_lines_pos_y <= ( $board_dimension + $border_thickness )
-        painter.drawImage ( ( WIDTH - $board_dimension ) / 2 ) + board_lines_pos_y, $initial_image_y, board_verti
-        board_lines_pos_y+= ( $board_dimension / $board_sections )
+      board_lines_pos_x= 0
+      while board_lines_pos_x <= ( $board_dimension + $border_thickness )
+        painter.drawImage $board_left_limit + board_lines_pos_x, $initial_image_y, board_verti
+        board_lines_pos_x+= ( $board_dimension / $board_sections )
       end
+
+      # Paint the highlight box
+      square_pos_x= $board_left_limit + $board_square_move_x
+      square_pos_y= $initial_image_y + $board_square_move_y
+      painter.drawImage square_pos_x, square_pos_y, board_square_horiz
+      painter.drawImage square_pos_x, square_pos_y, board_square_verti
+      painter.drawImage square_pos_x, square_pos_y + $board_square_dimension, board_square_horiz
+      painter.drawImage square_pos_x + $board_square_dimension, square_pos_y, board_square_verti
     
     end
 
@@ -643,6 +660,16 @@ class Board < Qt::Widget
         print "@horiz length: ", @line_horiz.width, "\n"
         print "@verti length: ", @line_verti.height, "\n"
         $border_thickness=rand(1..40)
+
+      ## Board highlight_movement
+      when Qt::Key_Left.value
+        $board_square_move_x-= $board_square_dimension  unless $board_square_move_x < $board_left_limit - $board_square_dimension
+      when Qt::Key_Right.value
+        $board_square_move_x+= $board_square_dimension  unless $board_square_move_x > $board_right_limit - $board_square_dimension
+      when Qt::Key_Up.value
+        $board_square_move_y-= $board_square_dimension  unless $board_square_move_y <= $board_top_limit
+      when Qt::Key_Down.value
+        $board_square_move_y+= $board_square_dimension  unless $board_square_move_y >= $board_bottom_limit - $board_square_dimension
       else
     end  
 
