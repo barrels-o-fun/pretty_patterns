@@ -39,14 +39,14 @@ HEIGHT=800
 # Constants for testing
 TEST_IMG_WIDTH=450
 TEST_IMG_HEIGHT=2
-TEST_HEX_COLOR="#00AAAA"
-TEST_HEX_OFFSET="FF" 
+TEST_HEX_COLOR="#4456AA"
+TEST_HEX_OFFSET="56" 
 TEST_IMG_X_MULTI=1
 TEST_IMG_Y_MULTI=1
 ###
 
 ### Game board variables
-$border_thickness=1
+$border_thickness=20
 $board_sections=8
 $line_length=10
 
@@ -179,20 +179,21 @@ class Board < Qt::Widget
     if WIDTH < HEIGHT
       short_dimension = ( WIDTH - ( $initial_image_x * 2 ) - $border_thickness )
     else
-      short_dimension = ( HEIGHT - ( $initial_image_y *2 ) - $border_thickness )
+      short_dimension = ( HEIGHT - ( $initial_image_y * 2 ) - $border_thickness )
     end
 
     temp_board_dimension = ( short_dimension  ) 
-    $board_dimension = ( temp_board_dimension - ( temp_board_dimension % $board_sections ) )
+    $board_dimension = ( temp_board_dimension - ( temp_board_dimension % $board_sections ) ) 
     $board_square_dimension = ( $board_dimension / $board_sections )
     $board_left_limit = ( ( WIDTH - $board_dimension ) / 2  )
     $board_right_limit = $board_left_limit + ( ( $board_sections - 1 ) * $board_square_dimension )  
     $board_top_limit = $initial_image_y 
-    $board_bottom_limit = HEIGHT - $initial_image_y - $board_square_dimension
+    $board_bottom_limit = HEIGHT - $initial_image_y
 
     if $board_diagnostics == 1
-      print "***** BOARD ATTRIBUTES ******"
+      print "***** BOARD ATTRIBUTES ******\n"
       print "$board_dimension: ", $board_dimension, "\n"
+      print "$border_thickness: ", $border_thickness, "\n"
       print "$board_left_limit: ", $board_left_limit, "\n"
       print "$board_right_limit: ", $board_right_limit, "\n"
       print "$board_top_limit: ", $board_top_limit, "\n"
@@ -202,7 +203,9 @@ class Board < Qt::Widget
       print "Modulus: ", $board_dimension % $board_sections, "\n"
       print "$board_square_move_x: ", $board_square_move_x, "\n"
       print "$board_square_move_x_actual: ", $board_square_move_x + $board_left_limit, "\n"
-      print "*****************************"
+      print "$board_square_move_y: ", $board_square_move_y, "\n"
+      print "$board_square_move_y_actual: ", $board_square_move_y + $board_left_limit, "\n"
+      print "*****************************\n"
     end
   end
   ### END of def calculate_board
@@ -281,6 +284,28 @@ class Board < Qt::Widget
     end
     @line_horiz = build_image($line_length, 1, $img_hex_color, $img_hex_offset, $multiplier, $border_thickness, "horiz")
     @line_verti = build_image(1, $line_length, $img_hex_color, $img_hex_offset, $border_thickness, $multiplier, "verti")
+
+    # Create border
+    $board_horiz_border=[]
+    local_hex_color=0
+    local_x_offset=0
+    (1..$border_thickness).each do  |step|
+      $board_horiz_border.push build_image($board_dimension + local_x_offset, 1, ($img_hex_color.hex + local_hex_color).to_s(16), $img_hex_offset, 1, 1, "verti")
+      local_hex_color+=$img_hex_offset.hex
+      local_x_offset+=2
+    end
+
+    local_hex_color=0
+    local_y_offset=0
+    $board_verti_border=[]
+    (1..$border_thickness).each do |step|
+      $board_verti_border.push build_image(1, $board_dimension + local_y_offset, ($img_hex_color.hex + local_hex_color).to_s(16), $img_hex_offset, 1, 1, "horiz")
+      local_hex_color+=$img_hex_offset.hex
+      local_y_offset+=2
+    end
+    print "Horiz_border: ", $board_horiz_border.count, "\n"
+    print "Verti_border: ", $board_verti_border.count, "\n"
+
   end
   ### END of def build_lines
 
@@ -395,34 +420,60 @@ class Board < Qt::Widget
 
     # Scale lines to board dimension
     board_horiz = @line_horiz.scaled($board_dimension + $border_thickness, $border_thickness )
-    board_verti = @line_verti.scaled($border_thickness, $board_dimension + $border_thickness)
-    board_square_horiz = @line_horiz.scaled($board_square_dimension + $border_thickness, $border_thickness )
-    board_square_verti = @line_horiz.scaled($border_thickness, $board_square_dimension + $border_thickness)
-    board_square_horiz.invertPixels
-    board_square_verti.invertPixels
+    board_verti = @line_verti.scaled($border_thickness, $board_dimension + $border_thickness )
+    board_square_horiz_top = @line_horiz.scaled($board_square_dimension + $border_thickness, $border_thickness )
+    board_square_horiz_top.invertPixels
+    board_square_horiz_bottom = board_square_horiz_top.mirrored(false,true)
+    board_square_verti_left = @line_horiz.scaled($border_thickness, $board_square_dimension + $border_thickness)
+    board_square_verti_left.invertPixels
+    board_square_verti_right = board_square_verti_left.mirrored(true, false)
    
     if $game_board==true
       # Paint horizontal lines
       board_lines_pos_y= 0
-      while board_lines_pos_y <= ( $board_dimension + $border_thickness )
+      while board_lines_pos_y <= $board_dimension 
         painter.drawImage $board_left_limit, $initial_image_y + board_lines_pos_y, board_horiz
         board_lines_pos_y+= ( $board_dimension /  $board_sections  )
       end
 
       # Paint vertical lines
       board_lines_pos_x= 0
-      while board_lines_pos_x <= ( $board_dimension + $border_thickness )
+      while board_lines_pos_x <= $board_dimension 
         painter.drawImage $board_left_limit + board_lines_pos_x, $initial_image_y, board_verti
         board_lines_pos_x+= ( $board_dimension / $board_sections )
       end
+ 
+      # Painter border
+      # Horizontal
+      local_x_offset=0
+      local_y_offset=0
+      $board_horiz_border.each do |paint|
+        painter.drawImage $board_left_limit + $border_thickness - local_x_offset, $initial_image_y - local_y_offset, paint
+        painter.drawImage $board_left_limit + $border_thickness - local_x_offset, $initial_image_y + $board_dimension + $border_thickness - 1 + local_y_offset, paint
+        local_x_offset+=1
+        local_y_offset+=1
+      end
+ 
+      # Vertical
+      local_x_offset=0
+      local_y_offset=0
+      $board_verti_border.each do |paint|
+        painter.drawImage $board_left_limit + $border_thickness - local_x_offset, $initial_image_y - local_y_offset, paint
+        painter.drawImage $board_right_limit + $board_square_dimension + $border_thickness - 1 + local_x_offset, $initial_image_y - local_y_offset, paint
+        local_x_offset+=1
+        local_y_offset+=1
+      end
+
+
+
 
       # Paint the highlight box
       square_pos_x= $board_left_limit + $board_square_move_x
       square_pos_y= $initial_image_y + $board_square_move_y
-      painter.drawImage square_pos_x, square_pos_y, board_square_horiz
-      painter.drawImage square_pos_x, square_pos_y, board_square_verti
-      painter.drawImage square_pos_x, square_pos_y + $board_square_dimension, board_square_horiz
-      painter.drawImage square_pos_x + $board_square_dimension, square_pos_y, board_square_verti
+      painter.drawImage square_pos_x, square_pos_y, board_square_horiz_top
+      painter.drawImage square_pos_x, square_pos_y, board_square_verti_left
+      painter.drawImage square_pos_x, square_pos_y + $board_square_dimension, board_square_horiz_bottom
+      painter.drawImage square_pos_x + $board_square_dimension, square_pos_y, board_square_verti_right
     
     end
 
@@ -679,7 +730,7 @@ class Board < Qt::Widget
         print "$multiplier: ", $multiplier, "\n"
         print "@horiz length: ", @line_horiz.width, "\n"
         print "@verti length: ", @line_verti.height, "\n"
-        $border_thickness=rand(1..40)
+        $border_thickness=rand(1..50)
         $board_square_move_x = 0
         $board_square_move_y = 0
 
@@ -691,7 +742,7 @@ class Board < Qt::Widget
       when Qt::Key_Up.value
         $board_square_move_y-= $board_square_dimension  unless $board_square_move_y <= 0
       when Qt::Key_Down.value
-        $board_square_move_y+= $board_square_dimension  unless $board_square_move_y >= $board_bottom_limit - $board_square_dimension
+        $board_square_move_y+= $board_square_dimension  unless $board_square_move_y >= $board_bottom_limit - $board_square_dimension - $initial_image_y
 
       # Change board size
       when Qt::Key_Plus.value
@@ -708,7 +759,6 @@ class Board < Qt::Widget
 
     if key  # Prevents things happening when interacting with Window (e.g. moving with mouse)
       build_image_arrays
-      build_lines
      
       if $pretty_patterns=="on"
         patterns($orig_images[0], $active_images)
@@ -719,6 +769,7 @@ class Board < Qt::Widget
       end
      
       calculate_board 
+      build_lines
       calculate_board_persp
       repaint 
     else
